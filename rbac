@@ -1,0 +1,250 @@
+1) Check RBAC set on cluster 
+
+cat /etc/kubernetes/manifests/kube-apiserver.yaml
+
+```
+spec:
+  containers:
+  - command:
+    - kube-apiserver
+    - --advertise-address=10.166.96.9
+    - --allow-privileged=true
+    - --authorization-mode=Node,RBAC
+    - --client-ca-file=/etc/kubernetes/pki/ca.crt
+    - --enable-admission-plugins=NodeRestrictio
+```
+
+2) What are the resources the kube-proxy role in the kube-system namespace is given access to?
+
+root@controlplane:~# kubectl get role kube-proxy -n kube-system -o yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: "2022-01-25T11:22:51Z"
+  managedFields:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:rules: {}
+    manager: kubeadm
+    operation: Update
+    time: "2022-01-25T11:22:51Z"
+  name: kube-proxy
+  namespace: kube-system
+  resourceVersion: "272"
+  uid: 45ca902c-ff35-456f-857b-01f0d7408f1c
+rules:
+- apiGroups:
+  - ""
+  resourceNames:
+  - kube-proxy
+  resources:
+  - configmaps
+  verbs:
+  - get
+
+
+3)Create the necessary roles and role bindings required for the dev-user to create, list and delete pods in the default namespace.
+
+root@controlplane:~# kubectl create role developer --verb=list,get,create,delete --resource=pods -o yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: "2022-01-25T11:37:58Z"
+  managedFields:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:rules: {}
+    manager: kubectl-create
+    operation: Update
+    time: "2022-01-25T11:37:58Z"
+  name: developer
+  namespace: default
+  resourceVersion: "1634"
+  uid: 7ef86573-a172-4558-b22a-7034cb93180a
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - get
+  - create
+  - delete
+
+  root@controlplane:~# kubectl create rolebinding dev-user-binding --role=developer --user=dev-user -o yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  creationTimestamp: "2022-01-25T11:41:45Z"
+  managedFields:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:roleRef:
+        f:apiGroup: {}
+        f:kind: {}
+        f:name: {}
+      f:subjects: {}
+    manager: kubectl-create
+    operation: Update
+    time: "2022-01-25T11:41:45Z"
+  name: dev-user-binding
+  namespace: default
+  resourceVersion: "1906"
+  uid: 19963b81-e323-40eb-b309-77443e7cb7db
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: developer
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: dev-user
+
+
+4) Grant the dev-user permissions to create deployments in the blue namespace.
+Remember to add both groups "apps" and "extensions"
+
+root@controlplane:~# cat a.yaml 
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: blue
+  name: deploy-role
+rules:
+- apiGroups: ["apps", "extensions"]
+  resources: ["deployments"]
+  verbs: ["create"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: dev-user-deploy-binding
+  namespace: blue
+subjects:
+- kind: User
+  name: dev-user
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: deploy-role
+  apiGroup: rbac.authorization.k8s.io
+
+
+
+# Cluster Role and Bindings
+What user/groups are the cluster-admin role bound to?
+
+inspect both role and binding to find out group
+
+controlplane ~ ➜  kubectl describe clusterrolebinding cluster-admin
+Name:         cluster-admin
+Labels:       kubernetes.io/bootstrapping=rbac-defaults
+Annotations:  rbac.authorization.kubernetes.io/autoupdate: true
+Role:
+  Kind:  ClusterRole
+  Name:  cluster-admin
+Subjects:
+  Kind   Name            Namespace
+  ----   ----            ---------
+  Group  system:masters 
+
+
+
+2) A new user michelle joined the team. She will be focusing on the nodes in the cluster. Create the required ClusterRoles and ClusterRoleBindings so she gets access to the nodes.
+
+controlplane ~ ➜  kubectl create clusterrole node-admin --resource=node --verb=list,get,create,delete,watch --dry-run=client -o yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: node-admin
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - list
+  - get
+  - create
+  - delete
+  - watch
+
+controlplane ~ ➜  kubectl create clusterrolebinding node-admin-binding --user=michelle --clusterrole=node-admin --dry-run=client -o yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: null
+  name: node-admin-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: michelle
+
+
+controlplane ~ ✖ kubectl get nodes --as michelle
+NAME           STATUS   ROLES                  AGE   VERSION
+controlplane   Ready    control-plane,master   18m   v1.22.2+k3s2
+
+controlplane ~ ➜  kubectl auth can-i list nodes --as michelle
+Warning: resource 'nodes' is not namespace scoped
+yes
+
+3) michelle's responsibilities are growing and now she will be responsible for storage as well. Create the required ClusterRoles and ClusterRoleBindings to allow her access to Storage.
+
+controlplane ~ ➜  kubectl create clusterrole storage-admin --resource=persistentvolumes,storageclasses --verb=create,delete,get,watch,list --dry-run=client -o yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: storage-admin
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - create
+  - delete
+  - get
+  - watch
+  - list
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - create
+  - delete
+  - get
+  - watch
+  - list
+
+controlplane ~ ➜  kubectl create clusterrolebinding michelle-storage-admin --user=michelle --clusterrole=storage-admin --dry-run=client -o yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: null
+  name: michelle-storage-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: storage-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: michelle
+
+controlplane ~ ✖ kubectl auth can-i list storageclasses --as michelle
+Warning: resource 'storageclasses' is not namespace scoped in group 'storage.k8s.io'
+yes

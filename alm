@@ -1,0 +1,52 @@
+Since the entrypoint is overridden in the pod definition, the command that will be run is just --color green
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: webapp-green
+  name: webapp-green
+spec:
+  containers:
+  - image: kodekloud/webapp-color
+    args: ["--color", "green"]
+    name: webapp-green
+    resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+
+
+# Configmaps, Secrets and Env
+```kubectl create configmap <name> --from-literal=DB_NAME=com.nextorbit.aws```
+```kubectl create configmap <name> --from-file=config.properties```
+
+
+---
+spec:
+  containers:
+  - envFrom:
+    - configMapRef:
+         name: webapp-config-map
+    image: kodekloud/webapp-color
+    name: webapp-color
+
+
+# envFrom is a list
+# Secrets
+spec:
+  containers:
+  - image: kodekloud/simple-webapp-mysql
+    imagePullPolicy: Always
+    name: webapp
+    envFrom:
+    - secretRef:
+        name: db-secret
+
+
+``` kubectl drain <nodename> --ignore-daemonsets``` 
+# Node will cordoned (marked unschedulable)
+kubectl uncordon <nodename>
+

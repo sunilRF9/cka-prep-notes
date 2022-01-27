@@ -1,0 +1,33 @@
+# Taints are set on Nodes, Tolerations are set on pods
+#
+```kubectl taint nodes <nodename> key=value:effect```
+```root@controlplane:~# kubectl taint node node01 spray=mortein:NoSchedule```
+
+Master Node is tainted with effect of NoSchedule, runs only Management Pods
+# An example to set toleration on a pod
+
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: bee
+  name: bee
+spec:
+  containers:
+  - image: nginx
+    name: bee
+    resources: {}
+  tolerations:
+  - key: "spray"
+    value: "mortein"
+    operator: "Equal"
+    effect: "NoSchedule"
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+```root@controlplane:~# kubectl run bee --image=nginx --dry-run=client -o yaml > bee.yaml```
+
+# Untain a node
+first check ```kubectl describe node <> | grep -i taints```
+root@controlplane:~# kubectl taint node controlplane node-role.kubernetes.io/master:NoSchedule-

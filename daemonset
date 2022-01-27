@@ -1,0 +1,2 @@
+```kubectl create deployment elastic --image=fluend --dry-run=client -o yaml > elastic.yaml```
+change obj to DaemonSet and set provided ns

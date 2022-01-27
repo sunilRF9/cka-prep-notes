@@ -1,0 +1,58 @@
+kube-apiserver                  
+-----
+kube-controlmanager             
+kube-scheduler
+kubelet
+kube-proxy
+-----
+kubectl 
+
+# K8s supports only 3 release versions at a time 
+# ex: 1.13 is out then 1.10 will be out of support
+
+# Steps
+Upgrade Master to next minor version. Then same for workers.
+Upgrade kubeadm first ```apt-get -y upgrade kubeadm=1.12.0-00```
+kubeadm upgrade apply v1.12.00
+next upgrade kubelet
+```apt-get -y upgrade kubelet=1.12.0-00```
+Same for workers
+
+1.19.0 to 1.20.0
+
+On the controlplane node, run the command run the following commands:
+
+    apt-get update
+    This will update the package lists from the software repository.
+
+    apt-get install kubeadm=1.20.0-00
+    This will install the kubeadm version 1.20
+
+    kubeadm upgrade apply v1.20.0
+    This will upgrade kubernetes controlplane. Note that this can take a few minutes.
+
+    apt install kubelet=1.20.0-00 This will update the kubelet with the version 1.20.
+
+    You may need to restart kubelet after it has been upgraded.
+    Run: systemctl restart kubelet
+
+# Mistake 1
+Forgot to run ```kubeadm upgrade apply v1.20.0```  after apt-get install kubeadm=1.20.0-00
+
+############ Output ################
+
+[upload-config] Storing the configuration used in ConfigMap "kubeadm-config" in the "kube-system" Namespace
+[kubelet] Creating a ConfigMap "kubelet-config-1.20" in namespace kube-system with the configuration for the kubelets in the cluster
+[kubelet-start] Writing kubelet configuration to file "/var/lib/kubelet/config.yaml"
+[bootstrap-token] configured RBAC rules to allow Node Bootstrap tokens to get nodes
+[bootstrap-token] configured RBAC rules to allow Node Bootstrap tokens to post CSRs in order for nodes to get long term certificate credentials
+[bootstrap-token] configured RBAC rules to allow the csrapprover controller automatically approve CSRs from a Node Bootstrap Token
+[bootstrap-token] configured RBAC rules to allow certificate rotation for all node client certificates in the cluster
+[addons] Applied essential addon: CoreDNS
+[addons] Applied essential addon: kube-proxy
+
+[upgrade/successful] SUCCESS! Your cluster was upgraded to "v1.20.0". Enjoy!
+
+[upgrade/kubelet] Now that your control plane is upgraded, please proceed with upgrading your kubelets if you haven't already done so.
+root@controlplane:~# 
+
