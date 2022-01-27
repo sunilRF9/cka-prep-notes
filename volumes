@@ -1,0 +1,89 @@
+Configure a volume to store these logs at /var/log/webapp on the host.
+Name: webapp
+Image Name: kodekloud/event-simulator
+Volume HostPath: /var/log/webapp
+Volume Mount: /log 
+
+----
+spec:
+  containers:
+  - env:
+    - name: LOG_HANDLERS
+      value: file
+    image: kodekloud/event-simulator
+    imagePullPolicy: Always
+    name: event-simulator
+    volumeMounts:
+    - mountPath: /log
+      name: log-volume
+      readOnly: true
+  volumes:
+  - name: log-volume
+    hostPath: 
+      path: /var/log/webapp
+
+
+---
+
+Create PV
+
+root@controlplane:~# cat vol.yaml 
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-log
+spec:
+  capacity:
+    storage: 100Mi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "/pv/log"
+  persistentVolumeReclaimPolicy: Retain
+
+---
+Create PVC
+root@controlplane:~# k apply -f vol-pvc.yaml 
+persistentvolumeclaim/claim-log-1 created
+root@controlplane:~# cat vol-pvc.yaml 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: claim-log-1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Mi
+---
+
+claim pv in pod
+
+root@controlplane:~# k delete pod webapp --force
+warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+pod "webapp" force deleted
+root@controlplane:~# k apply -f op.yaml 
+pod/webapp created
+root@controlplane:~# cat op.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webapp
+  namespace: default
+spec:
+  containers:
+  - env:
+    - name: LOG_HANDLERS
+      value: file
+    image: kodekloud/event-simulator
+    imagePullPolicy: Always
+    name: event-simulator
+    volumeMounts:
+    - mountPath: /log
+      name: log-volume
+      readOnly: true
+  volumes:
+  - name: log-volume
+    persistentVolumeClaim:
+      claimName: claim-log-1
