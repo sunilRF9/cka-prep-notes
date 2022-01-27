@@ -1,0 +1,45 @@
+#List current netpols
+
+root@controlplane:~# kubectl get netpol --no-headers
+payroll-policy   name=payroll   31s
+
+Create a network policy to allow traffic from the Internal application only to the payroll-service and db-service.
+
+root@controlplane:~# kubectl get pods --show-labels
+NAME       READY   STATUS    RESTARTS   AGE   LABELS
+external   1/1     Running   0          22m   name=external
+internal   1/1     Running   0          22m   name=internal
+mysql      1/1     Running   0          22m   name=mysql
+payroll    1/1     Running   0          22m   name=payroll
+root@controlplane:~# kubectl get netpol  
+NAME              POD-SELECTOR    AGE
+internal-policy   name=internal   53s
+payroll-policy    name=payroll    23m
+root@controlplane:~# cat netpol.yaml 
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: internal-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      name: internal
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          name: payroll
+    ports:
+    - protocol: TCP
+      port: 8080
+  - to:
+    - podSelector:
+        matchLabels:
+          name: mysql
+    ports:
+    - protocol: TCP
+      port: 3306
+root@controlplane:~#
