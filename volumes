@@ -87,3 +87,72 @@ spec:
   - name: log-volume
     persistentVolumeClaim:
       claimName: claim-log-1
+
+---
+
+The Storage Class called local-storage makes use of VolumeBindingMode set to WaitForFirstConsumer. This will delay the binding and provisioning of a PersistentVolume until a Pod using the PersistentVolumeClaim is created.
+---
+
+Create a new pod called nginx with the image nginx:alpine. The Pod should make use of the PVC local-pvc and mount the volume at the path /var/www/html.
+
+
+controlplane ~ ➜  kubectl get pvc
+NAME        STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS    AGE
+local-pvc   Pending                                      local-storage   5m2s
+
+controlplane ~ ➜  vim  pod.yaml 
+
+controlplane ~ ➜  kubectl apply -f pod.yaml 
+pod/nginx created
+
+controlplane ~ ➜  cat pod.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - image: nginx:alpine
+    name: nginx
+    volumeMounts:
+    - mountPath: /var/www/html
+      name: mypd
+  volumes:
+  - name: mypd
+    persistentVolumeClaim:
+      claimName: local-pvc
+---
+Create a new Storage Class called delayed-volume-sc that makes use of the below specs:
+
+
+controlplane ~ ➜  kubectl apply -f  sc.yaml 
+storageclass.storage.k8s.io/delayed-volume-sc created
+
+controlplane ~ ➜  cat sc.yaml 
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: delayed-volume-sc
+provisioner: kubernetes.io/no-provisioner
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+mountOptions:
+  - debug
+volumeBindingMode: WaitForFirstConsumer
+
+controlplane ~ ➜  kubectl describe sc delayed-volume-sc
+Name:            delayed-volume-sc
+IsDefaultClass:  No
+Annotations:     kubectl.kubernetes.io/last-applied-configuration={"allowVolumeExpansion":true,"apiVersion":"storage.k8s.io/v1","kind":"StorageClass","metadata":{"annotations":{},"name":"delayed-volume-sc"},"mountOptions":["debug"],"provisioner":"kubernetes.io/no-provisioner","reclaimPolicy":"Retain","volumeBindingMode":"WaitForFirstConsumer"}
+
+Provisioner:           kubernetes.io/no-provisioner
+Parameters:            <none>
+AllowVolumeExpansion:  True
+MountOptions:
+  debug
+ReclaimPolicy:      Retain
+VolumeBindingMode:  WaitForFirstConsumer
+Events:             <none>
+
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
