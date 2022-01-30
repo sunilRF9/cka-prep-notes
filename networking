@@ -21,3 +21,137 @@ role.rbac.authorization.k8s.io/weave-net configured
 rolebinding.rbac.authorization.k8s.io/weave-net configured
 daemonset.apps/weave-net configured
 root@controlplane:~# kubectl describ
+
+
+root@controlplane:/opt/cni/bin# ip addr show weave
+5: weave: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1376 qdisc noqueue state UP group default qlen 1000
+    link/ether 7e:3d:83:f3:ee:c8 brd ff:ff:ff:ff:ff:ff
+    inet 10.50.0.1/16 brd 10.50.255.255 scope global weave
+       valid_lft forever preferred_lft forever
+root@controlplane:/opt/cni/bin# 
+
+What is the range of IP addresses configured for PODs on this cluster?
+----
+root@controlplane:~# kubectl get pods -n kube-system
+NAME                                   READY   STATUS    RESTARTS   AGE
+coredns-74ff55c5b-cv5g7                1/1     Running   0          25m
+coredns-74ff55c5b-mp4k2                1/1     Running   0          25m
+etcd-controlplane                      1/1     Running   0          25m
+kube-apiserver-controlplane            1/1     Running   0          25m
+kube-controller-manager-controlplane   1/1     Running   0          25m
+kube-proxy-7f6kj                       1/1     Running   0          24m
+kube-proxy-7xklt                       1/1     Running   0          25m
+kube-scheduler-controlplane            1/1     Running   0          25m
+weave-net-l5mmd                        2/2     Running   1          25m
+weave-net-txk52                        2/2     Running   0          24m
+
+root@controlplane:~# kubectl logs weave-net-l5mmd weave -n kube-system                                   
+DEBU: 2022/01/30 12:55:35.021229 [kube-peers] Checking peer "7a:03:c5:26:09:1a" against list &{[]}
+Peer not in list; removing persisted data
+INFO: 2022/01/30 12:55:35.242786 Command line options: map[conn-limit:200 datapath:datapath db-prefix:/weavedb/weave-net docker-api: expect-npc:true http-addr:127.0.0.1:6784 ipalloc-init:consensus=0 ipalloc-range:10.50.0.0/16 metrics-addr:0.0.0.0:6782 name:7a:03:c5:26:09:1a nickname:controlplane no-dns:true no-masq-local:true port:6783]
+
+What is the IP Range configured for the services within the cluster?
+
+cat /etc/kubernetes/manifests/kube-apiserver.yaml | grep -i service-cluster-ip-range
+
+- --service-cluster-ip-range=10.96.0.0/12
+
+# Kube-proxy configured to use iptables for proxying
+root@controlplane:~# kubectl logs kube-proxy-7f6kj -n kube-system
+W0130 12:55:46.046298       1 proxier.go:661] Failed to load kernel module ip_vs_wrr with modprobe. You can ignore this message when kube-proxy is running inside container without mounting /lib/modules
+W0130 12:55:46.048785       1 proxier.go:661] Failed to load kernel module ip_vs_sh with modprobe. You can ignore this message when kube-proxy is running inside container without mounting /lib/modules
+I0130 12:55:46.236243       1 node.go:172] Successfully retrieved node IP: 10.26.162.6
+I0130 12:55:46.236293       1 server_others.go:142] kube-proxy node IP is an IPv4 address (10.26.162.6), assume IPv4 operation
+W0130 12:55:46.266971       1 server_others.go:578] Unknown proxy mode "", assuming iptables proxy
+
+---
+
+# Core DNS config file located at
+
+root@controlplane:~# kubectl describe deployment coredns  -n kube-system 
+Name:                   coredns
+Namespace:              kube-system
+CreationTimestamp:      Sun, 30 Jan 2022 13:25:46 +0000
+Labels:                 k8s-app=kube-dns
+Annotations:            deployment.kubernetes.io/revision: 1
+Selector:               k8s-app=kube-dns
+Replicas:               2 desired | 2 updated | 2 total | 2 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  1 max unavailable, 25% max surge
+Pod Template:
+  Labels:           k8s-app=kube-dns
+  Service Account:  coredns
+  Containers:
+   coredns:
+    Image:       k8s.gcr.io/coredns:1.7.0
+    Ports:       53/UDP, 53/TCP, 9153/TCP
+    Host Ports:  0/UDP, 0/TCP, 0/TCP
+    Args:
+      -conf
+      /etc/coredns/Corefile
+
+# Core Dns cm
+root@controlplane:~# kubectl describe configmap coredns -n kube-system
+Name:         coredns
+Namespace:    kube-system
+Labels:       <none>
+Annotations:  <none>
+
+Data
+====
+Corefile:
+----
+.:53 {
+    errors
+    health {
+       lameduck 5s
+    }
+    ready
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+       pods insecure
+       fallthrough in-addr.arpa ip6.arpa
+       ttl 30
+    }
+    prometheus :9153
+    forward . /etc/resolv.conf {
+       max_concurrent 1000
+    }
+    cache 30
+    loop
+    reload
+    loadbalance
+}
+
+Events:  <none>
+
+---
+From the hr pod nslookup the mysql service and redirect the output to a file /root/CKA/nslookup.out
+
+#kubectl exec -it hr -- nslookup <podname>.<namespace>
+
+root@controlplane:~# kubectl get pods -A
+NAMESPACE     NAME                                   READY   STATUS    RESTARTS   AGE
+default       hr                                     1/1     Running   0          28m
+default       simple-webapp-1                        1/1     Running   0          27m
+default       simple-webapp-122                      1/1     Running   0          27m
+default       test                                   1/1     Running   0          28m
+default       webapp-7c6fbdf444-7772t                1/1     Running   0          3m26s
+kube-system   coredns-74ff55c5b-7p8j2                1/1     Running   0          29m
+kube-system   coredns-74ff55c5b-wvngv                1/1     Running   0          29m
+kube-system   etcd-controlplane                      1/1     Running   0          30m
+kube-system   kube-apiserver-controlplane            1/1     Running   0          30m
+kube-system   kube-controller-manager-controlplane   1/1     Running   0          30m
+kube-system   kube-flannel-ds-ljjcz                  1/1     Running   0          29m
+kube-system   kube-proxy-gtgfc                       1/1     Running   0          29m
+kube-system   kube-scheduler-controlplane            1/1     Running   0          30m
+payroll       mysql                                  1/1     Running   0          14m
+payroll       web                                    1/1     Running   0          28m
+root@controlplane:~# kubectl exec -it hr -- nslookup mysql.payroll
+Server:         10.96.0.10
+Address:        10.96.0.10#53
+
+Name:   mysql.payroll.svc.cluster.local
+Address: 10.96.97.128
+
+root@controlplane:~# kubectl exec -it hr -- nslookup mysql.payroll > /root/CKA/nslookup.out
