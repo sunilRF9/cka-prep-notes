@@ -1,0 +1,92 @@
+# Changed DB_HOST variable in deployment
+
+controlplane ~ ➜  kubectl expose pod mysql --name mysql-service -n alpha --port=3306 --dry-run=client -oyaml
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    name: mysql
+  name: mysql-service
+  namespace: alpha
+spec:
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    name: mysql
+status:
+  loadBalancer: {}
+
+
+# Target port mismatch, fixed by editing svc
+
+
+controlplane ~ ➜  kubectl edit svc mysql-service -n beta
+service/mysql-service edited
+
+controlplane ~ ➜  kubectl get svc mysql-service -n beta -oyaml
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2022-01-31T06:26:01Z"
+  name: mysql-service
+  namespace: beta
+  resourceVersion: "1186"
+  uid: ef37252c-5ce3-48e8-a6c1-0248d2cc9d25
+spec:
+  clusterIP: 10.43.147.83
+  clusterIPs:
+  - 10.43.147.83
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    name: mysql
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
+
+
+# Mysql pod password error, describe pod, edit pod pass env to fix issue
+controlplane ~ ➜  kubectl get pod -n epsilon mysql -o yaml > sql.yaml
+
+
+controlplane ~ ➜  kubectl delete pod mysql -n epsilon --force
+warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+pod "mysql" force deleted
+
+controlplane ~ ➜  vim sql.yaml 
+
+controlplane ~ ➜  kubectl apply -f sql.yaml 
+pod/mysql created
+
+controlplane ~ ➜  cat sql.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: mysql
+  name: mysql
+  namespace: epsilon
+spec:
+  containers:
+  - env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: paswrd
+    image: mysql:5.6
+    imagePullPolicy: IfNotPresent
+    name: mysql
+    ports:
+    - containerPort: 3306
+      protocol: TCP
+
+
+# Describe svcs and look for ports/selector mismatches, nodePort mismatch
