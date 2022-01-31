@@ -6,3 +6,32 @@
 # exec command is wrong, fixed by editing static pod manifest located at /etc/kubernetes/manifests/
 
 root@controlplane:~# vim /etc/kubernetes/manifests/kube-scheduler.yaml 
+
+# Incase Node not ready check kubelet svc if its in running
+# systemctl status kubelet 
+# systemctl start kubelet 
+#
+root@controlplane:~# journalctl -u kubelet.service -f
+
+
+# Also check /var/lib/kubelet/config.yaml 
+● kubelet.service - kubelet: The Kubernetes Node Agent
+   Loaded: loaded (/lib/systemd/system/kubelet.service; enabled; vendor preset: enabled)
+  Drop-In: /etc/systemd/system/kubelet.service.d
+           └─10-kubeadm.conf
+   Active: activating (auto-restart) (Result: exit-code) since Mon 2022-01-31 07:39:01 UTC; 1s ago
+     Docs: https://kubernetes.io/docs/home/
+  Process: 7185 ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS (code=exited, status=255)
+
+root@node01:~# cat /etc/systemd/system/kubelet.service.d/10-kubeadm.conf  
+# Note: This dropin only works with kubeadm and kubelet v1.11+
+[Service]
+Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf"
+########### Environment="KUBELET_CONFIG_ARGS=--config=/var/lib/kubelet/config.yaml"
+# This is a file that "kubeadm init" and "kubeadm join" generates at runtime, populating the KUBELET_KUBEADM_ARGS variable dynamically
+EnvironmentFile=-/var/lib/kubelet/kubeadm-flags.env
+# This is a file that the user can use for overrides of the kubelet args as a last resort. Preferably, the user should use
+# the .NodeRegistration.KubeletExtraArgs object in the configuration files instead. KUBELET_EXTRA_ARGS should be sourced from this file.
+EnvironmentFile=-/etc/default/kubelet
+ExecStart=
+ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS
