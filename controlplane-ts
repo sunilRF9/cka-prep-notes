@@ -1,0 +1,8 @@
+# Check control plane components kgp -n kube-system, and describe and check
+
+1s (x4 over 69s)  kubelet  Error: failed to start container "kube-scheduler": Error response from daemon: OCI runtime create failed: container_linux.go:367: starting container process caused: exec: "kube-schedulerrrr": executable file not found in $PATH: unknown
+  Warning  BackOff  1s (x8 over 67s)   kubelet  Back-off restarting failed container
+
+# exec command is wrong, fixed by editing static pod manifest located at /etc/kubernetes/manifests/
+
+root@controlplane:~# vim /etc/kubernetes/manifests/kube-scheduler.yaml 
