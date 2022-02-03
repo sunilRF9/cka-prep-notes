@@ -155,3 +155,7 @@ Name:   mysql.payroll.svc.cluster.local
 Address: 10.96.97.128
 
 root@controlplane:~# kubectl exec -it hr -- nslookup mysql.payroll > /root/CKA/nslookup.out
+
+Get the IP of the nginx-resolver pod and replace the dots(.) with hyphon(-) which will be used below.
+kubectl get pod nginx-resolver -o wide
+kubectl run test-nslookup --image=busybox:1.28 --rm -it --restart=Never -- nslookup <P-O-D-I-P.default.pod> > /root/CKA/nginx.pod
