@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: gold-redis
+  name: gold-redis
+spec:
+  containers:
+  - image: redis:alpine
+    name: gold-redis
+    volumeMounts:
+    - name: vol-mnt
+      mountPath: "/etc/redis"
+  volumes:
+    - name: vol-mnt
+      persistentVolumeClaim:
+        claimName: log-claim

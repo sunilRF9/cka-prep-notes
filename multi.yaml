@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: multi
+  name: multi
+spec:
+  containers:
+  - image: nginx
+    name: c1
+    volumeMounts:
+    - name: vol-mnt
+      mountPath: "/tmp"
+  - image: busybox
+    name: c2
+    command: ["sleep", "4800"]
+    volumeMounts:
+    - name: vol-mnt
+      mountPath: "/tmp"
+  - image: redis:alpine
+    name: c3
+    volumeMounts:
+    - name: vol-mnt
+      mountPath: "/tmp"
+  volumes:
+    - name: vol-mnt
+      emptyDir: {}

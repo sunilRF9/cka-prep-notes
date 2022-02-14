@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: prod-pod
+  name: prod-pod
+spec:
+  containers:
+  - image: nginx
+    name: prod-pod
+  nodeName: beta-worker
+  tolerations:
+  - key: "env_type"
+    operator: "Equal"
+    effect: "NoSchedule"

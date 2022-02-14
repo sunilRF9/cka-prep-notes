@@ -1,0 +1,6 @@
+Server:    10.96.0.10
+Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+
+Name:      nginx-resolver-svc.default
+Address 1: 10.96.79.173 nginx-resolver-svc.default.svc.cluster.local
+pod "nginx-dns-rslv" deleted

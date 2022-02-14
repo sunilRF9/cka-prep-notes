@@ -1,0 +1,6 @@
+Server:    10.96.0.10
+Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+
+Name:      10-244-2-8.default.pod
+Address 1: 10.244.2.8
+pod "nginx-dns-rslv" deleted
